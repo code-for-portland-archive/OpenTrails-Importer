@@ -1,4 +1,4 @@
 OpenTrails-Importer
 ===================
 
-An Objective-C class to turn OpenTrails data into Esri Terraformer objects.
+An NSOperation subclass which parses [OpenTrails data](http://www.codeforamerica.org/specifications/trails/) into [Esri Terraformer](https://github.com/esripdx/terraformer-objc) objects.
