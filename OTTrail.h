@@ -1,5 +1,5 @@
 //
-//  OTImportOperation.h
+//  OTTrail.h
 //  OpenTrails Importer
 //
 //  The MIT License (MIT)
@@ -27,26 +27,15 @@
 
 @import Foundation;
 
-extern NSString *const OTTrailSegmentsFilePathKey;
-extern NSString *const OTNamedTrailsFilePathKey;
-extern NSString *const OTTrailheadsFilePathKey;
-extern NSString *const OTAreasFilePathKey;
-extern NSString *const OTStewardsFilePathKey;
-extern NSString *const OTErrorDomain;
+@interface OTTrail : NSObject
 
-typedef NS_ENUM( NSUInteger, OTErrorCode )
-{
-    OTErrorCodeUnknown = 0,
-    OTErrorCodeDataFormatError = 100,
-    OTErrorCodeReadError = 101
-};
+@property (readonly) NSString *identifier;
+@property (copy) NSString *name;
+@property (copy) NSString *description;
+@property (copy) NSString *network;
+@property (copy) NSArray *segments;
+@property (copy) NSArray *trailheads;
 
-@interface OTImportOperation : NSOperation
-
-@property (strong) NSArray *importedTrails;
-@property (strong) NSArray *importedAreas;
-@property (strong) NSError *error;
-
-- (instancetype)initWithFilePaths:(NSDictionary *)filePaths;
+- (instancetype)initWithIdentifier:(NSString *)identifier;
 
 @end

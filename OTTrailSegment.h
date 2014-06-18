@@ -1,5 +1,5 @@
 //
-//  OTImportOperation.h
+//  OTTrailSegment.h
 //  OpenTrails Importer
 //
 //  The MIT License (MIT)
@@ -26,27 +26,32 @@
 //
 
 @import Foundation;
+@import MapKit;
 
-extern NSString *const OTTrailSegmentsFilePathKey;
-extern NSString *const OTNamedTrailsFilePathKey;
-extern NSString *const OTTrailheadsFilePathKey;
-extern NSString *const OTAreasFilePathKey;
-extern NSString *const OTStewardsFilePathKey;
-extern NSString *const OTErrorDomain;
+@class OTSteward;
 
-typedef NS_ENUM( NSUInteger, OTErrorCode )
+typedef NS_ENUM( NSUInteger, OTTrailPolicy )
 {
-    OTErrorCodeUnknown = 0,
-    OTErrorCodeDataFormatError = 100,
-    OTErrorCodeReadError = 101
+    OTTrailPolicyPolicyAllowed,
+    OTTrailPolicyPolicyNotAllowed,
+    OTTrailPolicyPolicyPermissive,
+    OTTrailPolicyPolicyDesignated
 };
 
-@interface OTImportOperation : NSOperation
+@interface OTTrailSegment : NSObject
 
-@property (strong) NSArray *importedTrails;
-@property (strong) NSArray *importedAreas;
-@property (strong) NSError *error;
+@property (readonly) NSString *identifier;
+@property (readonly) NSArray *coordinates;
+@property (copy) NSString *name;
+@property (copy) NSDictionary *openStreetMapTags;
+@property (strong) OTSteward *steward;
+@property (assign) OTTrailPolicy motorVehiclePolicy;
+@property (assign) OTTrailPolicy footTrafficPolicy;
+@property (assign) OTTrailPolicy bicyclePolicy;
+@property (assign) OTTrailPolicy horsePolicy;
+@property (assign) OTTrailPolicy skiPolicy;
+@property (assign) OTTrailPolicy wheelchairPolicy;
 
-- (instancetype)initWithFilePaths:(NSDictionary *)filePaths;
+- (instancetype)initWithIdentifier:(NSString *)identifier coordinates:(CLLocationCoordinate2D *)coordinates count:(NSUInteger)count;
 
 @end

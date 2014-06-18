@@ -1,4 +1,7 @@
 //
+//  OTImportOperation.m
+//  OpenTrails Importer
+//
 //  The MIT License (MIT)
 //
 //  Copyright (c) 2014 Marc Charbonneau
@@ -23,6 +26,7 @@
 //
 
 #import "OTImportOperation.h"
+#import "OTOpenTrails.h"
 #import "CHCSVParser.h"
 
 @interface OTImportOperation() <CHCSVParserDelegate>
@@ -32,6 +36,7 @@
 @property (assign) BOOL isComplete;
 @property (strong) NSMutableDictionary *segmentsByIDs;
 @property (strong) NSMutableDictionary *trailsByIDs;
+@property (strong) OTTrail *currentTrail;
 
 - (void)parseAreas;
 - (void)parseTrailheads;
@@ -115,5 +120,60 @@
 }
 
 #pragma mark CHCSVParserDelegate
+
+- (void)parserDidBeginDocument:(CHCSVParser *)parser;
+{
+    self.trailsByIDs = [[NSMutableDictionary alloc] init];
+}
+
+- (void)parserDidEndDocument:(CHCSVParser *)parser;
+{
+    [self parseTrailheads];
+}
+
+- (void)parser:(CHCSVParser *)parser didBeginLine:(NSUInteger)recordNumber;
+{
+    if ( recordNumber == 1 )
+        return;
+    
+    self.currentTrail = [[OTTrail alloc] init];
+}
+
+- (void)parser:(CHCSVParser *)parser didEndLine:(NSUInteger)recordNumber;
+{
+    if ( [self.currentTrail.identifier length] > 0 )
+        [self.trailsByIDs setObject:self.currentTrail forKey:self.currentTrail.identifier];
+}
+
+- (void)parser:(CHCSVParser *)parser didReadField:(NSString *)field atIndex:(NSInteger)fieldIndex;
+{
+    switch ( fieldIndex ) {
+        case 0:
+            self.currentTrail.name = field;
+            break;
+        case 1:
+            self.currentTrail.segments = [self trailSegmentsMatchingIDs:field];
+            break;
+        case 2:
+            self.currentTrail.identifier = field;
+            break;
+        default:
+            break;
+    }
+}
+
+- (void)parser:(CHCSVParser *)parser didFailWithError:(NSError *)error;
+{
+    [self willChangeValueForKey:@"isExecuting"];
+    [self willChangeValueForKey:@"isFinished"];
+    
+    NSDictionary *userInfo = @{ NSUnderlyingErrorKey : error };
+    self.error = [[NSError alloc] initWithDomain:OTErrorDomain code:OTErrorCodeDataFormatError userInfo:userInfo];
+    self.isParsing = NO;
+    self.isComplete = YES;
+    
+    [self didChangeValueForKey:@"isExecuting"];
+    [self didChangeValueForKey:@"isFinished"];
+}
 
 @end
