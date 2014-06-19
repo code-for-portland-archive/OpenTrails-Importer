@@ -32,11 +32,14 @@
 
 typedef NS_ENUM( NSUInteger, OTTrailPolicy )
 {
-    OTTrailPolicyPolicyAllowed,
-    OTTrailPolicyPolicyNotAllowed,
-    OTTrailPolicyPolicyPermissive,
-    OTTrailPolicyPolicyDesignated
+    OTTrailPolicyUnknown,
+    OTTrailPolicyAllowed,
+    OTTrailPolicyNotAllowed,
+    OTTrailPolicyPermissive,
+    OTTrailPolicyDesignated
 };
+
+extern OTTrailPolicy OTTrailPolicyFromString(NSString *);
 
 @interface OTTrailSegment : NSObject
 

@@ -1,5 +1,5 @@
 //
-//  OTImportOperation.h
+//  OTArea.m
 //  OpenTrails Importer
 //
 //  The MIT License (MIT)
@@ -25,28 +25,30 @@
 //  SOFTWARE.
 //
 
-@import Foundation;
+#import "OTArea.h"
 
-extern NSString *const OTTrailSegmentsFilePathKey;
-extern NSString *const OTNamedTrailsFilePathKey;
-extern NSString *const OTTrailheadsFilePathKey;
-extern NSString *const OTAreasFilePathKey;
-extern NSString *const OTStewardsFilePathKey;
-extern NSString *const OTErrorDomain;
+@implementation OTArea
 
-typedef NS_ENUM( NSUInteger, OTErrorCode )
+- (instancetype)initWithIdentifier:(NSString *)identifier coordinates:(CLLocationCoordinate2D *)coordinates count:(NSUInteger)count;
 {
-    OTErrorCodeUnknown = 0,
-    OTErrorCodeDataFormatError = 100,
-    OTErrorCodeFileReadError = 101
-};
-
-@interface OTImportOperation : NSOperation
-
-@property (strong) NSArray *importedTrails;
-@property (strong) NSArray *importedAreas;
-@property (strong) NSError *error;
-
-- (instancetype)initWithFilePaths:(NSDictionary *)filePaths;
+    NSParameterAssert( [identifier length] > 0 );
+    NSParameterAssert( count > 0 );
+    
+    if ( self = [super init] ) {
+        
+        NSMutableArray *array = [[NSMutableArray alloc] initWithCapacity:count];
+        NSInteger index;
+        
+        for ( index = 0; index < count; index++ ) {
+            CLLocationCoordinate2D coordinate = coordinates[index];
+            [array addObject:[NSValue valueWithBytes:&coordinate objCType:@encode(CLLocationCoordinate2D)]];
+        }
+        
+        _identifier = identifier;
+        _coordinates = [array copy];
+    }
+    
+    return self;
+}
 
 @end

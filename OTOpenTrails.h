@@ -29,3 +29,4 @@
 #import "OTTrail.h"
 #import "OTTrailhead.h"
 #import "OTTrailSegment.h"
+#import "OTArea.h"

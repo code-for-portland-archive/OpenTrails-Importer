@@ -27,6 +27,25 @@
 
 #import "OTTrailSegment.h"
 
+OTTrailPolicy OTTrailPolicyFromString(NSString *aString) {
+    
+    OTTrailPolicy policy;
+    
+    if ( [aString isEqualToString:@"yes"] ) {
+        policy = OTTrailPolicyAllowed;
+    } else if ( [aString isEqualToString:@"no"] ) {
+        policy = OTTrailPolicyNotAllowed;
+    } else if ( [aString isEqualToString:@"permissive"] ) {
+        policy = OTTrailPolicyDesignated;
+    } else if ( [aString isEqualToString:@"designated"] ) {
+        policy = OTTrailPolicyDesignated;
+    } else {
+        policy = OTTrailPolicyUnknown;
+    }
+    
+    return policy;
+}
+
 @implementation OTTrailSegment
 
 #pragma mark OTTrailSegment
