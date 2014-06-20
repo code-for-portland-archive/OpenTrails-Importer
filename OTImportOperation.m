@@ -62,9 +62,11 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 - (void)parseSegments;
 - (void)parseTrails;
 - (void)parseStewards;
+- (void)finishOperation;
 
 - (NSArray *)trailSegmentsMatchingIDs:(NSString *)string;
 - (NSArray *)trailsMatchingIDs:(NSString *)string;
+- (NSArray *)stewardsMatchingIDs:(NSString *)string;
 - (NSDictionary *)splitOSMTagsString:(NSString *)tags;
 - (NSInteger)getCoordinates:(CLLocationCoordinate2D *)coordinates fromArray:(NSArray *)pairs;
 
@@ -110,7 +112,8 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
             [self parseTrailheads];
             break;
         case OTImportStageParsingTrailheads:
-#warning here
+            [self finishOperation];
+            break;
         case OTImportStageParsingFinished:
             break;
     }
@@ -175,7 +178,55 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 
     // Trailheads.geojson is required.
     
-    [self parseSegments];
+    @try {
+        
+        NSString *path = [self.filePaths objectForKey:OTTrailheadsFilePathKey];
+        NSData *data = [NSData dataWithContentsOfFile:path];
+        NSDictionary *featureCollection = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+        
+        for ( NSDictionary *feature in featureCollection[@"features"] ) {
+            
+            NSDictionary *properties = feature[@"properties"];
+            NSDictionary *geometry = feature[@"geometry"];
+            NSString *identifier = properties[@"id"];
+            NSArray *coordinates = geometry[@"coordinates"];
+            
+            if ( [identifier length] == 0 || [coordinates count] == 0 )
+                continue;
+            
+            double longitude = [coordinates[0] doubleValue];
+            double latitude = [coordinates[1] doubleValue];
+
+            OTTrailhead *trailhead = [[OTTrailhead alloc] init];
+            CLLocationCoordinate2D coordinate = CLLocationCoordinate2DMake( latitude, longitude );
+            
+            trailhead.coordinate = coordinate;
+            trailhead.name = properties[@"name"];
+            trailhead.address = properties[@"address"];
+            trailhead.stewards = [self stewardsMatchingIDs:properties[@"steward_ids"]];
+            trailhead.openStreetMapTags = [self splitOSMTagsString:properties[@"osm_tags"]];
+            trailhead.hasParking = [properties[@"parking"] isEqualToString:@"yes"];
+            trailhead.hasDrinkingWater = [properties[@"drinkwater"] isEqualToString:@"yes"];
+            trailhead.hasRestrooms = [properties[@"restrooms"] isEqualToString:@"yes"];
+            trailhead.hasKiosk = [properties[@"kiosk"] isEqualToString:@"yes"];
+            
+            for ( OTTrail *trail in [self trailSegmentsMatchingIDs:properties[@"trail_ids"]] ) {
+                
+                NSMutableArray *trailheads = [NSMutableArray arrayWithArray:trail.trailheads];
+                [trailheads addObject:trailhead];
+                trail.trailheads = [trailheads copy];
+            }
+        }
+    }
+    @catch (NSException *exception) {
+        
+        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : NSLocalizedString( @"OpenTrails importer could not parse .geoJSON file.", @"" ) };
+        self.error = [[NSError alloc] initWithDomain:OTErrorDomain code:OTErrorCodeDataFormatError userInfo:userInfo];
+        self.stage = OTImportStageParsingFinished;
+        return;
+    }
+    
+    [self beginNextTask];
 }
 
 - (void)parseSegments;
@@ -184,10 +235,10 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
     
     // Trail_segments.geojson is a required file.
     
-    NSString *path = [self.filePaths objectForKey:OTTrailSegmentsFilePathKey];
     
     @try {
         
+        NSString *path = [self.filePaths objectForKey:OTTrailSegmentsFilePathKey];
         NSData *data = [NSData dataWithContentsOfFile:path];
         NSDictionary *featureCollection = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
         
@@ -256,13 +307,21 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
     [parser parse];
 }
 
+- (void)finishOperation;
+{
+    self.importedTrails = [[self.trailsByIDs allValues] copy];
+    self.stage = OTImportStageParsingFinished;
+}
+
 - (NSArray *)trailSegmentsMatchingIDs:(NSString *)string;
 {
     NSArray *components = [string componentsSeparatedByString:@";"];
     NSMutableSet *segments = [[NSMutableSet alloc] initWithCapacity:[components count]];
+    NSCharacterSet *whitespace = [NSCharacterSet whitespaceCharacterSet];
     
-    for ( NSString *segmentID in components ) {
+    for ( NSString *component in components ) {
         
+        NSString *segmentID = [component stringByTrimmingCharactersInSet:whitespace];
         OTTrailSegment *segment = self.segmentsByIDs[segmentID];
         
         if ( segment == nil )
@@ -278,9 +337,11 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 {
     NSArray *components = [string componentsSeparatedByString:@";"];
     NSMutableSet *trails = [[NSMutableSet alloc] initWithCapacity:[components count]];
-    
-    for ( NSString *trailID in components ) {
+    NSCharacterSet *whitespace = [NSCharacterSet whitespaceCharacterSet];
+
+    for ( NSString *component in components ) {
         
+        NSString *trailID = [component stringByTrimmingCharactersInSet:whitespace];
         OTTrail *trail = self.trailsByIDs[trailID];
         
         if ( trail == nil )
@@ -290,6 +351,26 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
     }
     
     return [trails allObjects];
+}
+
+- (NSArray *)stewardsMatchingIDs:(NSString *)string;
+{
+    NSArray *components = [string componentsSeparatedByString:@";"];
+    NSMutableSet *stewards = [[NSMutableSet alloc] initWithCapacity:[components count]];
+    NSCharacterSet *whitespace = [NSCharacterSet whitespaceCharacterSet];
+
+    for ( NSString *component in components ) {
+        
+        NSString *stewardID = [component stringByTrimmingCharactersInSet:whitespace];
+        OTSteward *steward = self.stewardsByIDs[stewardID];
+        
+        if ( steward == nil )
+            continue;
+        
+        [stewards addObject:steward];
+    }
+    
+    return [stewards allObjects];
 }
 
 - (NSDictionary *)splitOSMTagsString:(NSString *)tags;
@@ -346,10 +427,6 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 }
 
 #pragma mark CHCSVParserDelegate
-
-- (void)parserDidBeginDocument:(CHCSVParser *)parser;
-{
-}
 
 - (void)parserDidEndDocument:(CHCSVParser *)parser;
 {
