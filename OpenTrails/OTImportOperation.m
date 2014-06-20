@@ -475,10 +475,10 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
         
         switch ( fieldIndex ) {
             case 0:
-                self.csvLineData[@"name"] = field;
+                self.csvLineData[@"identifier"] = field;
                 break;
             case 1:
-                self.csvLineData[@"identifier"] = field;
+                self.csvLineData[@"name"] = field;
                 break;
             case 2:
                 self.csvLineData[@"URL"] = [NSURL URLWithString:field];
