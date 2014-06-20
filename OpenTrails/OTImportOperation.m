@@ -68,7 +68,6 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 - (NSArray *)trailsMatchingIDs:(NSString *)string;
 - (NSArray *)stewardsMatchingIDs:(NSString *)string;
 - (NSDictionary *)splitOSMTagsString:(NSString *)tags;
-- (NSInteger)getCoordinates:(CLLocationCoordinate2D *)coordinates fromArray:(NSArray *)pairs;
 
 @end
 
@@ -123,9 +122,7 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 {
     self.stage = OTImportStageParsingAreas;
     
-    // Areas.geojson is optional.
-    
-    NSString *path = [self.filePaths objectForKey:OTAreasFilePathKey];
+    NSString *path = [self.filePaths objectForKey:OTAreasFilePathKey]; // optional file.
 
     if ( ![[NSFileManager defaultManager] isReadableFileAtPath:path] )
         [self beginNextTask];
@@ -146,10 +143,17 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
             if ( [identifier length] == 0 || [coordinateArrays count] == 0 )
                 continue;
             
-            CLLocationCoordinate2D *coordinates;
-            NSUInteger count = [self getCoordinates:coordinates fromArray:coordinateArrays];
+            NSUInteger index, count = [coordinateArrays count];
+            CLLocationCoordinate2D coordinates[count];
+            
+            for ( index = 0; index < count; index++ ) {
+                NSArray *pair = coordinateArrays[index];
+                double longitude = [pair[0] doubleValue];
+                double latitude = [pair[1] doubleValue];
+                coordinates[index] = CLLocationCoordinate2DMake( latitude, longitude );
+            }
+
             OTArea *area = [[OTArea alloc] initWithIdentifier:identifier coordinates:coordinates count:count];
-            free( coordinates );
 
             area.name = properties[@"name"];
             area.URL = [NSURL URLWithString:properties[@"url"]];
@@ -163,7 +167,8 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
     }
     @catch (NSException *exception) {
         
-        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : NSLocalizedString( @"OpenTrails importer could not parse .geoJSON file.", @"" ) };
+        NSString *errorDescription = [NSString stringWithFormat:NSLocalizedString( @"OpenTrails importer could not parse %@.", @"" ), path];
+        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : errorDescription };
         self.error = [[NSError alloc] initWithDomain:OTErrorDomain code:OTErrorCodeDataFormatError userInfo:userInfo];
         self.stage = OTImportStageParsingFinished;
         return;
@@ -175,12 +180,11 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 - (void)parseTrailheads;
 {
     self.stage = OTImportStageParsingTrailheads;
-
-    // Trailheads.geojson is required.
+    
+    NSString *path = [self.filePaths objectForKey:OTTrailheadsFilePathKey]; // required file.
     
     @try {
         
-        NSString *path = [self.filePaths objectForKey:OTTrailheadsFilePathKey];
         NSData *data = [NSData dataWithContentsOfFile:path];
         NSDictionary *featureCollection = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
         
@@ -220,7 +224,8 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
     }
     @catch (NSException *exception) {
         
-        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : NSLocalizedString( @"OpenTrails importer could not parse .geoJSON file.", @"" ) };
+        NSString *errorDescription = [NSString stringWithFormat:NSLocalizedString( @"OpenTrails importer could not parse %@.", @"" ), path];
+        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : errorDescription };
         self.error = [[NSError alloc] initWithDomain:OTErrorDomain code:OTErrorCodeDataFormatError userInfo:userInfo];
         self.stage = OTImportStageParsingFinished;
         return;
@@ -233,12 +238,10 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 {
     self.stage = OTImportStageParsingSegments;
     
-    // Trail_segments.geojson is a required file.
-    
+    NSString *path = [self.filePaths objectForKey:OTTrailSegmentsFilePathKey]; // required file.
     
     @try {
         
-        NSString *path = [self.filePaths objectForKey:OTTrailSegmentsFilePathKey];
         NSData *data = [NSData dataWithContentsOfFile:path];
         NSDictionary *featureCollection = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
         
@@ -252,10 +255,17 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
             if ( [identifier length] == 0 || [coordinateArrays count] == 0 )
                 continue;
             
-            CLLocationCoordinate2D *coordinates;
-            NSUInteger count = [self getCoordinates:coordinates fromArray:coordinateArrays];
+            NSUInteger index, count = [coordinateArrays count];
+            CLLocationCoordinate2D coordinates[count];
+            
+            for ( index = 0; index < count; index++ ) {
+                NSArray *pair = coordinateArrays[index];
+                double longitude = [pair[0] doubleValue];
+                double latitude = [pair[1] doubleValue];
+                coordinates[index] = CLLocationCoordinate2DMake( latitude, longitude );
+            }
+            
             OTTrailSegment *segment = [[OTTrailSegment alloc] initWithIdentifier:identifier coordinates:coordinates count:count];
-            free( coordinates );
             
             segment.name = properties[@"name"];
             segment.steward = self.stewardsByIDs[properties[@"steward_id"]];
@@ -272,7 +282,8 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
     }
     @catch (NSException *exception) {
         
-        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : NSLocalizedString( @"OpenTrails importer could not parse .geoJSON file.", @"" ) };
+        NSString *errorDescription = [NSString stringWithFormat:NSLocalizedString( @"OpenTrails importer could not parse %@.", @"" ), path];
+        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : errorDescription };
         self.error = [[NSError alloc] initWithDomain:OTErrorDomain code:OTErrorCodeDataFormatError userInfo:userInfo];
         self.stage = OTImportStageParsingFinished;
         return;
@@ -375,6 +386,9 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
 
 - (NSDictionary *)splitOSMTagsString:(NSString *)tags;
 {
+    if ( [tags length] == 0 )
+        return @{};
+    
     NSArray *pairs = [tags componentsSeparatedByString:@";"];
     NSMutableDictionary *dictionary = [[NSMutableDictionary alloc] initWithCapacity:[pairs count]];
     NSCharacterSet *whitespace = [NSCharacterSet whitespaceAndNewlineCharacterSet];
@@ -387,21 +401,6 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
     }
     
     return [dictionary copy];
-}
-
-- (NSInteger)getCoordinates:(CLLocationCoordinate2D *)coordinates fromArray:(NSArray *)pairs;
-{
-    NSInteger index, count = [pairs count];
-    coordinates = malloc( sizeof(CLLocationCoordinate2D) * count);
-    
-    for ( index = 0; index < count; index++ ) {
-        NSArray *array = pairs[index];
-        double longitude = [array[0] doubleValue];
-        double latitude = [array[1] doubleValue];
-        coordinates[index] = CLLocationCoordinate2DMake( latitude, longitude );
-    }
-
-    return count;
 }
 
 #pragma mark NSOperation
@@ -462,7 +461,7 @@ NSString *const OTErrorDomain = @"OTErrorDomain";
         OTTrail *trail = [[OTTrail alloc] initWithIdentifier:identifier];
         
         trail.name = self.csvLineData[@"name"];
-        trail.description = self.csvLineData[@"description"];
+        trail.trailDescription = self.csvLineData[@"description"];
         trail.network = self.csvLineData[@"network"];
         trail.segments = self.csvLineData[@"segments"];
         

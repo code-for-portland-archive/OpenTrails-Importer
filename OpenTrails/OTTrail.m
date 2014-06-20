@@ -1,5 +1,5 @@
 //
-//  OTTrail.h
+//  OTTrail.m
 //  OpenTrails Importer
 //
 //  The MIT License (MIT)
@@ -25,17 +25,24 @@
 //  SOFTWARE.
 //
 
-@import Foundation;
+#import "OTTrail.h"
 
-@interface OTTrail : NSObject
-
-@property (readonly) NSString *identifier;
-@property (copy) NSString *name;
-@property (copy) NSString *description;
-@property (copy) NSString *network;
-@property (copy) NSArray *segments;
-@property (copy) NSArray *trailheads;
+@implementation OTTrail
 
 - (instancetype)initWithIdentifier:(NSString *)identifier;
+{
+    NSParameterAssert( [identifier length] > 0 );
+    
+    if ( self = [super init] ) {
+        _identifier = identifier;
+    }
+    
+    return self;
+}
+
+- (NSString *)description;
+{
+    return [NSString stringWithFormat:@"<%@: %p, name=%@>", NSStringFromClass( [self class] ), self, self.name];
+}
 
 @end
