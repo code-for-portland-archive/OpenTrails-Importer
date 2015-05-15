@@ -38,16 +38,12 @@
     
     NSOperationQueue *queue = [[NSOperationQueue alloc] init];
     OTImportOperation *operation = [[OTImportOperation alloc] initWithFilePaths:filePaths];
-    __weak __typeof(operation) weakOperation = operation;
-    
-    operation.completionBlock = ^(void) {
-        
-        self.error = weakOperation.error;
-        self.trails = weakOperation.importedTrails;
-    };
     
     [queue addOperation:operation];
     [queue waitUntilAllOperationsAreFinished];
+    
+    self.error = operation.error;
+    self.trails = operation.importedTrails;
 }
 
 - (void)tearDown;
